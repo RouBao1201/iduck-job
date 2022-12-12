@@ -5,6 +5,8 @@ import com.dangdang.ddframe.job.config.JobCoreConfiguration;
 import com.dangdang.ddframe.job.config.JobTypeConfiguration;
 import com.dangdang.ddframe.job.config.simple.SimpleJobConfiguration;
 import com.dangdang.ddframe.job.lite.config.LiteJobConfiguration;
+import com.dangdang.ddframe.job.lite.internal.schedule.JobRegistry;
+import com.dangdang.ddframe.job.lite.internal.schedule.JobScheduleController;
 import com.dangdang.ddframe.job.lite.spring.api.SpringJobScheduler;
 import com.dangdang.ddframe.job.reg.zookeeper.ZookeeperRegistryCenter;
 import org.slf4j.Logger;
@@ -48,6 +50,50 @@ public class ElasticJobHandler {
                 jobParameter, shardingTotalCount, shardingItemParameters);
         SpringJobScheduler scheduler = new SpringJobScheduler(simpleJob, regCenter, liteJobConfiguration);
         scheduler.init();
+    }
+
+    /**
+     * 修改任务
+     *
+     * @param jobName 任务名
+     * @param cron    cron表达式
+     */
+    public void updateJob(String jobName, String cron) {
+        JobScheduleController jobScheduleController = JobRegistry.getInstance().getJobScheduleController(jobName);
+        if (jobScheduleController != null) {
+            jobScheduleController.rescheduleJob(cron);
+        }
+    }
+
+    /**
+     * 移除任务
+     *
+     * @param jobName 任务名
+     */
+    public void removeJob(String jobName) {
+        JobScheduleController jobScheduleController = JobRegistry.getInstance().getJobScheduleController(jobName);
+        if (jobScheduleController != null) {
+            // 暂停任务
+            jobScheduleController.pauseJob();
+
+            // 关闭调度器
+            jobScheduleController.shutdown();
+
+            // 删除节点
+            regCenter.remove("/" + jobName);
+        }
+    }
+
+    /**
+     * 暂停任务
+     *
+     * @param jobName 任务名
+     */
+    public void pauseJob(String jobName) {
+        JobScheduleController jobScheduleController = JobRegistry.getInstance().getJobScheduleController(jobName);
+        if (jobScheduleController != null) {
+            jobScheduleController.pauseJob();
+        }
     }
 
     /**
